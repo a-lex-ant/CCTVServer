@@ -10,8 +10,16 @@
 
 using namespace std;
 
+const basic_string<char> RICHIESTA_CHIUSURA_CONNESSIONE = "CHIUDI CONNESSIONE";
+const basic_string<char> RICHIESTA_SPEGNIMENTO= "SPEGNI";
+
+
+int avviaRaspivid();
 
 int main() {
+
+
+    int raspividEsito = avviaRaspivid();
 
     // crea un socket
     int listeningSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -69,6 +77,7 @@ int main() {
 
     // mentre ricevi, mostra il messaggio ricevuto e fai echo
     char buffer[4096];
+    basic_string<char> inArrivo = "";
     while(true)
     {
         //pulisci il buffer da cose che c'erano prima
@@ -87,6 +96,21 @@ int main() {
             break;
         }
 
+        inArrivo = string(buffer, 0, bytesReceived);
+
+
+        if(inArrivo.find(RICHIESTA_CHIUSURA_CONNESSIONE) != std::string::npos)
+        {
+            cout << "Trovata corrispondenza" <<endl;
+            break;
+        }
+
+        if(inArrivo.find(RICHIESTA_SPEGNIMENTO) != std::string::npos)
+        {
+            cout << "Trovata corrispondenza" <<endl;
+        }
+
+
         //mostra il messaggio ricevuto
         cout << "Messaggio ricevuto dal client: " << string(buffer, 0, bytesReceived) << endl;
 
@@ -96,5 +120,17 @@ int main() {
     // chiudi il socket
     close(clientSocket);
 
+    return 0;
+}
+
+int avviaRaspivid() {
+    //run script
+    return 0;
+}
+
+int chiudiTutto()
+{
+    system("pkill vlc");
+    system("pkill raspivid");
     return 0;
 }
