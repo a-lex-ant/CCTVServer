@@ -15,6 +15,9 @@ const basic_string<char> RICHIESTA_CHIUSURA_CONNESSIONE = "CHIUDI CONNESSIONE";
 const basic_string<char> RICHIESTA_SPEGNIMENTO= "SPEGNI";
 
 
+#define SHELLSCRIPT_START "#/bin/bash \necho \"Executing raspivid\"\n\
+raspivid -o - -t 0 -h 300 -w 300 | cvlc -v stream:///dev/stdin --sout '#rtp{sdp=rtsp://:8554}' :demux=h264"
+
 
 int avviaRaspivid();
 
@@ -146,7 +149,7 @@ int chiudiVLCeRaspivid() {
 
 int avviaRaspivid() {
     //TODO: run script!
-    if (system("raspivid") != 0)
+    if (system(SHELLSCRIPT_START) != 0)
     {
         cerr << "Errore nel far partire raspivid" <<endl;
         return -6;
