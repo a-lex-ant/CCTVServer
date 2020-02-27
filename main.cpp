@@ -8,10 +8,22 @@
 #include <string>
 
 
+
 using namespace std;
 
+const basic_string<char> RICHIESTA_CHIUSURA_CONNESSIONE = "CHIUDI CONNESSIONE";
+const basic_string<char> RICHIESTA_SPEGNIMENTO= "SPEGNI";
+
+
+
+int avviaRaspivid();
+
+int chiudiVLCeRaspivid();
 
 int main() {
+
+
+    avviaRaspivid();
 
     // crea un socket
     int listeningSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -69,6 +81,7 @@ int main() {
 
     // mentre ricevi, mostra il messaggio ricevuto e fai echo
     char buffer[4096];
+    basic_string<char> inArrivo = "";
     while(true)
     {
         //pulisci il buffer da cose che c'erano prima
@@ -87,6 +100,28 @@ int main() {
             break;
         }
 
+        inArrivo = string(buffer, 0, bytesReceived);
+
+
+        if(inArrivo.find(RICHIESTA_CHIUSURA_CONNESSIONE) != std::string::npos)
+        {
+            cout << "Trovata corrispondenza" <<endl;
+            send(clientSocket, "Trovata corrispondenza\n", 24, 0);
+            //TODO: chiudi TCP:
+            chiudiVLCeRaspivid();
+
+        }
+
+        if(inArrivo.find(RICHIESTA_SPEGNIMENTO) != std::string::npos)
+        {
+            cout << "Trovata corrispondenza" <<endl;
+            send(clientSocket, "Trovata corrispondenza\n", 24, 0);
+            //TODO: chiudi TCP e spegni:
+            chiudiVLCeRaspivid();
+            cout << system("shutdown +1")<< endl;
+        }
+
+
         //mostra il messaggio ricevuto
         cout << "Messaggio ricevuto dal client: " << string(buffer, 0, bytesReceived) << endl;
 
@@ -96,5 +131,25 @@ int main() {
     // chiudi il socket
     close(clientSocket);
 
+    return 0;
+}
+
+int chiudiVLCeRaspivid() {
+    if(system("pkill vlc") >0 || system("pkill raspivid") > 0)
+    {
+        cerr << "Errore nel chiudere vlc e/o raspivid" <<endl;
+        return -7;
+    }
+    cout << "Processi vlc e raspivid chiusi senza errori" <<endl;
+    return 0;
+}
+
+int avviaRaspivid() {
+    //TODO: run script!
+    if (system("raspivid") != 0)
+    {
+        cerr << "Errore nel far partire raspivid" <<endl;
+        return -6;
+    }
     return 0;
 }
