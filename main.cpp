@@ -8,18 +8,22 @@
 #include <string>
 
 
+
 using namespace std;
 
 const basic_string<char> RICHIESTA_CHIUSURA_CONNESSIONE = "CHIUDI CONNESSIONE";
 const basic_string<char> RICHIESTA_SPEGNIMENTO= "SPEGNI";
 
 
+
 int avviaRaspivid();
+
+int chiudiVLCeRaspivid();
 
 int main() {
 
 
-    int raspividEsito = avviaRaspivid();
+    avviaRaspivid();
 
     // crea un socket
     int listeningSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -102,12 +106,19 @@ int main() {
         if(inArrivo.find(RICHIESTA_CHIUSURA_CONNESSIONE) != std::string::npos)
         {
             cout << "Trovata corrispondenza" <<endl;
-            break;
+            send(clientSocket, "Trovata corrispondenza\n", 24, 0);
+            //TODO: chiudi TCP:
+            chiudiVLCeRaspivid();
+
         }
 
         if(inArrivo.find(RICHIESTA_SPEGNIMENTO) != std::string::npos)
         {
             cout << "Trovata corrispondenza" <<endl;
+            send(clientSocket, "Trovata corrispondenza\n", 24, 0);
+            //TODO: chiudi TCP e spegni:
+            chiudiVLCeRaspivid();
+            cout << system("shutdown +1")<< endl;
         }
 
 
@@ -123,14 +134,22 @@ int main() {
     return 0;
 }
 
-int avviaRaspivid() {
-    //run script
+int chiudiVLCeRaspivid() {
+    if(system("pkill vlc") >0 || system("pkill raspivid") > 0)
+    {
+        cerr << "Errore nel chiudere vlc e/o raspivid" <<endl;
+        return -7;
+    }
+    cout << "Processi vlc e raspivid chiusi senza errori" <<endl;
     return 0;
 }
 
-int chiudiTutto()
-{
-    system("pkill vlc");
-    system("pkill raspivid");
+int avviaRaspivid() {
+    //TODO: run script!
+    if (system("raspivid") != 0)
+    {
+        cerr << "Errore nel far partire raspivid" <<endl;
+        return -6;
+    }
     return 0;
 }
