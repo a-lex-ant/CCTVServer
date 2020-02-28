@@ -19,13 +19,15 @@ const basic_string<char> RICHIESTA_SPEGNIMENTO = "SPEGNI";
 raspivid -o - -t 0 -h 300 -w 300 | cvlc -v stream:///dev/stdin --sout '#rtp{sdp=rtsp://:8554}' :demux=h264"
 
 
-void avviaRaspivid();
+
+void avviaRaspivid ();
 
 int chiudiVLCeRaspivid ();
 
 int main ()
 {
-    std::thread t1(avviaRaspivid);
+
+    std::thread t1 (avviaRaspivid);
 
     // crea un socket
     int listeningSocket = socket (AF_INET,
@@ -93,8 +95,29 @@ int main ()
                               NI_MAXSERV,
                               0); //cerco di recuperare dati dal socket collegato
     if (result == 0) {
-        cout << hostNameBuffer << " connesso al " << serverNameBuffer
-             << endl; //hostnamebuffer contiene il nome dell'host connesso
+
+
+        int x = sizeof (hostNameBuffer) + sizeof (" connesso al ") + sizeof (serverNameBuffer) +
+                sizeof ("\n");
+        char nomeBuffer[x];
+        memset (nomeBuffer,
+                0,
+                x);
+        strcpy (nomeBuffer,
+                hostNameBuffer);
+        strcat (nomeBuffer,
+                " connesso al ");
+        strcat (nomeBuffer,
+                serverNameBuffer);
+        strcat (nomeBuffer, "\n");
+
+        cout << nomeBuffer << endl; //hostnamebuffer contiene il nome dell'host connesso
+        send (clientSocket,
+              nomeBuffer,
+              x,
+              0);
+
+
     }
     else {
         cout << "errore nel retrieve automatico dei dati di connessione";
@@ -141,20 +164,22 @@ int main ()
 
 
         //manda un messaggio per far sapere che ha ricevuto
-        strcpy(bufferUscita, "Il server ha ricevuto un messaggio");
+        strcpy (bufferUscita,
+                "\nIl server ha ricevuto un messaggio;\n");
         send (clientSocket,
               bufferUscita,
-              sizeof("Il server ha ricevuto un messaggio")-1,
+              sizeof("\nIl server ha ricevuto un messaggio;\n") - 1,
               0);
         //////////////////////////////////////////////////////////////
 
         if (inArrivo.find (RICHIESTA_CHIUSURA_CONNESSIONE) != std::string::npos) {
             cout << "Trovata corrispondenza" << endl;
 
-            strcpy(bufferUscita, "\rCHIUSURA IN CORSO");
+            strcpy (bufferUscita,
+                    "CHIUSURA IN CORSO\n");
             send (clientSocket,
                   bufferUscita,
-                  sizeof("\rCHIUSURA IN CORSO")-1,
+                  sizeof ("CHIUSURA IN CORSO\n") - 1,
                   0);
 
             //TODO: chiudi TCP:
@@ -165,10 +190,11 @@ int main ()
         if (inArrivo.find (RICHIESTA_SPEGNIMENTO) != std::string::npos) {
             cout << "Trovata corrispondenza" << endl;
 
-            strcpy(bufferUscita, "\rSPEGNIMENTO IN CORSO");
+            strcpy (bufferUscita,
+                    "SPEGNIMENTO IN CORSO\n");
             send (clientSocket,
                   bufferUscita,
-                  sizeof("\rSPEGNIMENTO IN CORSO")-1,
+                  sizeof ("SPEGNIMENTO IN CORSO\n") - 1,
                   0);
 
             //TODO: chiudi TCP e spegni:
@@ -176,7 +202,6 @@ int main ()
             cout << system ("shutdown +1") << endl;
             break;
         }
-
 
 
     }
