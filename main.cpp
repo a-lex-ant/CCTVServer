@@ -19,7 +19,6 @@ const basic_string<char> RICHIESTA_SPEGNIMENTO = "SPEGNI";
 raspivid -o - -t 0 -h 300 -w 300 | cvlc -v stream:///dev/stdin --sout '#rtp{sdp=rtsp://:8554}' :demux=h264"
 
 
-
 void avviaRaspivid ();
 
 int chiudiVLCeRaspivid ();
