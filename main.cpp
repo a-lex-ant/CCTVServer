@@ -19,13 +19,15 @@ const basic_string<char> RICHIESTA_SPEGNIMENTO = "SPEGNI";
 raspivid -o - -t 0 -h 300 -w 300 | cvlc -v stream:///dev/stdin --sout '#rtp{sdp=rtsp://:8554}' :demux=h264"
 
 
-void avviaRaspivid();
+
+void avviaRaspivid ();
 
 int chiudiVLCeRaspivid ();
 
 int main ()
 {
-    std::thread t1(avviaRaspivid);
+
+    std::thread t1 (avviaRaspivid);
 
     // crea un socket
     int listeningSocket = socket (AF_INET,
@@ -50,7 +52,7 @@ int main ()
     if (bind (listeningSocket,
               (sockaddr *) &hint,
               sizeof (hint)) == -1) {
-        cerr << "Non riesco a fare un bind con l'IP e/o la porta";
+        cerr << "Non riesco a fare un bind con l'IP e/o la porta\n";
         return -2;
     }
 
@@ -93,8 +95,29 @@ int main ()
                               NI_MAXSERV,
                               0); //cerco di recuperare dati dal socket collegato
     if (result == 0) {
-        cout << hostNameBuffer << " connesso al " << serverNameBuffer
-             << endl; //hostnamebuffer contiene il nome dell'host connesso
+
+
+        int x = sizeof (hostNameBuffer) + sizeof (" connesso al ") + sizeof (serverNameBuffer) +
+                sizeof ("\n");
+        char nomeBuffer[x];
+        memset (nomeBuffer,
+                0,
+                x);
+        strcpy (nomeBuffer,
+                hostNameBuffer);
+        strcat (nomeBuffer,
+                " connesso al ");
+        strcat (nomeBuffer,
+                serverNameBuffer);
+        strcat (nomeBuffer, "\n");
+
+        cout << nomeBuffer << endl; //hostnamebuffer contiene il nome dell'host connesso
+        send (clientSocket,
+              nomeBuffer,
+              x,
+              0);
+
+
     }
     else {
         cout << "errore nel retrieve automatico dei dati di connessione";
@@ -103,10 +126,15 @@ int main ()
 
     // mentre ricevi, mostra il messaggio ricevuto e fai echo
     char buffer[4096];
+    char bufferUscita[4096];
+
     basic_string<char> inArrivo = "";
     while (true) {
         //pulisci il buffer da cose che c'erano prima
         memset (buffer,
+                0,
+                4096);
+        memset (bufferUscita,
                 0,
                 4096);
         //Aspetta un messaggio
@@ -128,25 +156,47 @@ int main ()
                            0,
                            bytesReceived);
 
+        ////////////////////////////////////////////////
+        //mostra il messaggio ricevuto
+        cout << "Messaggio ricevuto dal client: " << string (buffer,
+                                                             0,
+                                                             bytesReceived) << endl;
+
+
+        //manda un messaggio per far sapere che ha ricevuto
+        strcpy (bufferUscita,
+                "\nIl server ha ricevuto un messaggio;\n");
+        send (clientSocket,
+              bufferUscita,
+              sizeof("\nIl server ha ricevuto un messaggio;\n") - 1,
+              0);
+        //////////////////////////////////////////////////////////////
 
         if (inArrivo.find (RICHIESTA_CHIUSURA_CONNESSIONE) != std::string::npos) {
             cout << "Trovata corrispondenza" << endl;
+
+            strcpy (bufferUscita,
+                    "CHIUSURA IN CORSO\n");
             send (clientSocket,
-                  "Trovata corrispondenza\n",
-                  24,
+                  bufferUscita,
+                  sizeof ("CHIUSURA IN CORSO\n") - 1,
                   0);
+
             //TODO: chiudi TCP:
             chiudiVLCeRaspivid ();
             break;
-
         }
 
         if (inArrivo.find (RICHIESTA_SPEGNIMENTO) != std::string::npos) {
             cout << "Trovata corrispondenza" << endl;
+
+            strcpy (bufferUscita,
+                    "SPEGNIMENTO IN CORSO\n");
             send (clientSocket,
-                  "Trovata corrispondenza\n",
-                  24,
+                  bufferUscita,
+                  sizeof ("SPEGNIMENTO IN CORSO\n") - 1,
                   0);
+
             //TODO: chiudi TCP e spegni:
             chiudiVLCeRaspivid ();
             cout << system ("shutdown +1") << endl;
@@ -154,17 +204,8 @@ int main ()
         }
 
 
-        //mostra il messaggio ricevuto
-        cout << "Messaggio ricevuto dal client: " << string (buffer,
-                                                             0,
-                                                             bytesReceived) << endl;
-
-        //rimanda il messaggio indietro per fare echo
-        send (clientSocket,
-              buffer,
-              bytesReceived + 1,
-              0);
     }
+
     // chiudi il socket
     close (clientSocket);
 
