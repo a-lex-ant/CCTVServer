@@ -128,25 +128,28 @@ int main ()
                            0,
                            bytesReceived);
 
+        ////////////////////////////////////////////////
+        //mostra il messaggio ricevuto
+        cout << "Messaggio ricevuto dal client: " << string (buffer,
+                                                             0,
+                                                             bytesReceived) << endl;
+
+        //manda un messaggio per far sapere che ha ricevuto
+        send (clientSocket,
+              buffer,
+              bytesReceived,
+              0);
+        //////////////////////////////////////////////////////////////
 
         if (inArrivo.find (RICHIESTA_CHIUSURA_CONNESSIONE) != std::string::npos) {
             cout << "Trovata corrispondenza" << endl;
-            send (clientSocket,
-                  "Trovata corrispondenza\n",
-                  24,
-                  0);
             //TODO: chiudi TCP:
             chiudiVLCeRaspivid ();
             break;
-
         }
 
         if (inArrivo.find (RICHIESTA_SPEGNIMENTO) != std::string::npos) {
             cout << "Trovata corrispondenza" << endl;
-            send (clientSocket,
-                  "Trovata corrispondenza\n",
-                  24,
-                  0);
             //TODO: chiudi TCP e spegni:
             chiudiVLCeRaspivid ();
             cout << system ("shutdown +1") << endl;
@@ -154,17 +157,9 @@ int main ()
         }
 
 
-        //mostra il messaggio ricevuto
-        cout << "Messaggio ricevuto dal client: " << string (buffer,
-                                                             0,
-                                                             bytesReceived) << endl;
 
-        //rimanda il messaggio indietro per fare echo
-        send (clientSocket,
-              buffer,
-              bytesReceived + 1,
-              0);
     }
+
     // chiudi il socket
     close (clientSocket);
 
