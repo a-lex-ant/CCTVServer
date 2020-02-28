@@ -19,12 +19,13 @@ const basic_string<char> RICHIESTA_SPEGNIMENTO = "SPEGNI";
 raspivid -o - -t 0 -h 300 -w 300 | cvlc -v stream:///dev/stdin --sout '#rtp{sdp=rtsp://:8554}' :demux=h264"
 
 
-void avviaRaspivid ();
+void avviaRaspivid();
 
 int chiudiVLCeRaspivid ();
 
 int main ()
 {
+    std::thread t1(avviaRaspivid);
 
     // crea un socket
     int listeningSocket = socket (AF_INET,
@@ -136,6 +137,7 @@ int main ()
                   0);
             //TODO: chiudi TCP:
             chiudiVLCeRaspivid ();
+            break;
 
         }
 
@@ -148,6 +150,7 @@ int main ()
             //TODO: chiudi TCP e spegni:
             chiudiVLCeRaspivid ();
             cout << system ("shutdown +1") << endl;
+            break;
         }
 
 
