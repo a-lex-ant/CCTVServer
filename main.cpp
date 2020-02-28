@@ -50,7 +50,7 @@ int main ()
     if (bind (listeningSocket,
               (sockaddr *) &hint,
               sizeof (hint)) == -1) {
-        cerr << "Non riesco a fare un bind con l'IP e/o la porta";
+        cerr << "Non riesco a fare un bind con l'IP e/o la porta\n";
         return -2;
     }
 
@@ -103,10 +103,15 @@ int main ()
 
     // mentre ricevi, mostra il messaggio ricevuto e fai echo
     char buffer[4096];
+    char bufferUscita[4096];
+
     basic_string<char> inArrivo = "";
     while (true) {
         //pulisci il buffer da cose che c'erano prima
         memset (buffer,
+                0,
+                4096);
+        memset (bufferUscita,
                 0,
                 4096);
         //Aspetta un messaggio
@@ -134,15 +139,24 @@ int main ()
                                                              0,
                                                              bytesReceived) << endl;
 
+
         //manda un messaggio per far sapere che ha ricevuto
+        strcpy(bufferUscita, "Il server ha ricevuto un messaggio");
         send (clientSocket,
-              buffer,
-              bytesReceived,
+              bufferUscita,
+              sizeof("Il server ha ricevuto un messaggio")-1,
               0);
         //////////////////////////////////////////////////////////////
 
         if (inArrivo.find (RICHIESTA_CHIUSURA_CONNESSIONE) != std::string::npos) {
             cout << "Trovata corrispondenza" << endl;
+
+            strcpy(bufferUscita, "\rCHIUSURA IN CORSO");
+            send (clientSocket,
+                  bufferUscita,
+                  sizeof("\rCHIUSURA IN CORSO")-1,
+                  0);
+
             //TODO: chiudi TCP:
             chiudiVLCeRaspivid ();
             break;
@@ -150,6 +164,13 @@ int main ()
 
         if (inArrivo.find (RICHIESTA_SPEGNIMENTO) != std::string::npos) {
             cout << "Trovata corrispondenza" << endl;
+
+            strcpy(bufferUscita, "\rSPEGNIMENTO IN CORSO");
+            send (clientSocket,
+                  bufferUscita,
+                  sizeof("\rSPEGNIMENTO IN CORSO")-1,
+                  0);
+
             //TODO: chiudi TCP e spegni:
             chiudiVLCeRaspivid ();
             cout << system ("shutdown +1") << endl;
