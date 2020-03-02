@@ -34,11 +34,17 @@ std::string Utilita::getDataDiOraString ()
 
 void Utilita::stampaRigaSuFile (FILE *pFile, char dataStampChar[50], char messaggio_da_stampare[50])
 {
-    valorizzaDatadiOra (dataStampChar);
-    char tab[] = "\t";
-    fprintf (pFile, dataStampChar);
-    fprintf (pFile, tab);
-    fprintf (pFile, messaggio_da_stampare);
+    std::string da_Stampare_String (messaggio_da_stampare);
+    if (!da_Stampare_String.empty ()) {
+        valorizzaDatadiOra (dataStampChar);
+        char tab[] = "\t";
+        fprintf (pFile,
+                 dataStampChar);
+        fprintf (pFile,
+                 tab);
+        fprintf (pFile,
+                 messaggio_da_stampare);
+    }
 }
 
 std::string Utilita::costruisciDataInString (tm _struct)

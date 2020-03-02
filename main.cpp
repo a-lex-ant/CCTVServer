@@ -8,6 +8,9 @@
 #include <string>
 #include <thread>
 #include "Utilita.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <iostream>
 
 
 using namespace std;
@@ -17,7 +20,7 @@ const basic_string<char> RICHIESTA_SPEGNIMENTO = "SPEGNI";
 
 
 #define SHELLSCRIPT_START "#/bin/bash \necho \"Executing raspivid\"\n\
-raspivid -o - -t 0 -h 300 -w 300 | cvlc -v stream:///dev/stdin --sout '#rtp{sdp=rtsp://:8554}' :demux=h264"
+raspivid -o - -t 0 -h 300 -w 300 -n | cvlc -v stream:///dev/stdin --sout '#rtp{sdp=rtsp://:8554}' :demux=h264"
 
 
 void avviaRaspivid ();
@@ -126,118 +129,146 @@ int main ()
               nomeBuffer,
               x,
               0);
+        utilita.stampaRigaSuFile(fp,dataStamp,nomeBuffer);
 
 
     }
     else {
-        cout << "errore nel retrieve automatico dei dati di connessione";
+        char errore_retrieve[] = "Errore nel retrieve automatico dei dati di connessione\n";
+        cerr << errore_retrieve;
+        utilita.stampaRigaSuFile(fp,dataStamp,errore_retrieve);
     }
 
 
-    // mentre ricevi, mostra il messaggio ricevuto e fai echo
+    // ricevi e processa il messaggio
     char buffer[4096];
     char bufferUscita[4096];
 
     basic_string<char> inArrivo = "";
-    while (true) {
-        //pulisci il buffer da cose che c'erano prima
-        memset (buffer,
-                0,
-                4096);
-        memset (bufferUscita,
-                0,
-                4096);
-        //Aspetta un messaggio
-        int bytesReceived = recv (clientSocket,
-                                  buffer,
-                                  4096,
-                                  0);
-        if (bytesReceived == -1) {
-            char errore[] = "C'è stato un problema di connessione... \n";
-            utilita.stampaRigaSuFile(fp,dataStamp,errore);
-            cerr << errore;
-            break;
-        }
+        while (true) {
+            //pulisci il buffer da cose che c'erano prima
+            memset (buffer,
+                    0,
+                    4096);
+            memset (bufferUscita,
+                    0,
+                    4096);
+            //Aspetta un messaggio
+            int bytesReceived = recv (clientSocket,
+                                      buffer,
+                                      4096,
+                                      0);
+            if (bytesReceived == -1) {
+                char errore[] = "C'è stato un problema di connessione... \n";
+                utilita.stampaRigaSuFile (fp,
+                                          dataStamp,
+                                          errore);
+                cerr << errore;
+                break;
+            }
 
-        if (bytesReceived == 0) {
-            char errore[] = "sembra che il client si sia disconnesso...\n";
-            utilita.stampaRigaSuFile(fp,dataStamp,errore);
-            cerr << errore;
-            break;
-        }
+            if (bytesReceived == 0) {
+                char errore[] = "sembra che il client si sia disconnesso...\n";
+                utilita.stampaRigaSuFile (fp,
+                                          dataStamp,
+                                          errore);
+                cerr << errore;
+                break;
+            }
 
-        char comando_riconosciuto[] = "Comando riconosciuto\n";
+            char comando_riconosciuto[] = "Comando riconosciuto\n";
 
-        inArrivo = string (buffer,
-                           0,
-                           bytesReceived);
+            inArrivo = string (buffer,
+                               0,
+                               bytesReceived);
 
-        ////////////////////////////////////////////////
-        //mostra il messaggio ricevuto
-        cout << "Messaggio ricevuto dal client: " << string (buffer,
-                                                             0,
-                                                             bytesReceived) << endl;
+            ////////////////////////////////////////////////
+            //mostra il messaggio ricevuto
+            cout << "Messaggio ricevuto dal client: " << string (buffer,
+                                                                 0,
+                                                                 bytesReceived) << endl;
 
 
-        //manda un messaggio per far sapere che ha ricevuto
-        char server_riceve_msg[] ="Il server ha ricevuto un messaggio;\n";
-        strcpy (bufferUscita,
-                server_riceve_msg);
-        send (clientSocket,
-              bufferUscita,
-              sizeof(server_riceve_msg) - 1,
-              0);
-        utilita.stampaRigaSuFile(fp,dataStamp,server_riceve_msg);
-        //////////////////////////////////////////////////////////////
-
-        if (inArrivo.find (RICHIESTA_CHIUSURA_CONNESSIONE) != std::string::npos) {
-            cout << "Trovata corrispondenza" << endl;
-
+            //manda un messaggio per far sapere che ha ricevuto
+            char server_riceve_msg[] = "Il server ha ricevuto un messaggio;\n";
             strcpy (bufferUscita,
-                    "CHIUSURA IN CORSO\n");
+                    server_riceve_msg);
             send (clientSocket,
                   bufferUscita,
-                  sizeof ("CHIUSURA IN CORSO\n") - 1,
+                  sizeof (server_riceve_msg) - 1,
                   0);
+            utilita.stampaRigaSuFile (fp,
+                                      dataStamp,
+                                      server_riceve_msg);
+            //////////////////////////////////////////////////////////////
 
-            utilita.stampaRigaSuFile(fp,dataStamp,comando_riconosciuto);
-            utilita.stampaRigaSuFile (fp,dataStamp,bufferUscita);
+            if (inArrivo.find (RICHIESTA_CHIUSURA_CONNESSIONE) != std::string::npos) {
+                cout << "Trovata corrispondenza" << endl;
 
-            //TODO: chiudi TCP:
-            chiudiVLCeRaspivid (utilita, fp, dataStamp);
-            break;
+                strcpy (bufferUscita,
+                        "CHIUSURA IN CORSO\n");
+                send (clientSocket,
+                      bufferUscita,
+                      sizeof ("CHIUSURA IN CORSO\n") - 1,
+                      0);
+
+                char uscita[] = "Chiusura in corso \n";
+                utilita.stampaRigaSuFile (fp,
+                                          dataStamp,
+                                          uscita);
+
+                break;
+            }
+            else if (inArrivo.find (RICHIESTA_SPEGNIMENTO) != std::string::npos) {
+
+
+                cout << comando_riconosciuto << endl;
+
+                strcpy (bufferUscita,
+                        "SPEGNIMENTO IN CORSO\n");
+                send (clientSocket,
+                      bufferUscita,
+                      sizeof ("SPEGNIMENTO IN CORSO\n") - 1,
+                      0);
+
+                utilita.stampaRigaSuFile (fp,
+                                          dataStamp,
+                                          comando_riconosciuto);
+
+                char spegnimento[] = "Spegnimento in corso \n";
+                utilita.stampaRigaSuFile (fp,
+                                          dataStamp,
+                                          spegnimento);
+
+                //chiudi TCP e spegni:
+                chiudiVLCeRaspivid (utilita,
+                                    fp,
+                                    dataStamp);
+                cout << system ("shutdown +1") << endl;
+                close (clientSocket);// chiudi il socket
+                return 0;
+            }
+            else {
+                char comando_non_riconosciuto[] = "Comando non riconosciuto\n";
+                utilita.stampaRigaSuFile (fp,
+                                          dataStamp,
+                                          comando_non_riconosciuto);
+                cerr << comando_non_riconosciuto;
+            }
+
         }
-        else if (inArrivo.find (RICHIESTA_SPEGNIMENTO) != std::string::npos) {
+
+    close(listeningSocket);
+        close(clientSocket);
+    fflush (fp);
+    fclose(fp);
 
 
-            cout << comando_riconosciuto << endl;
-
-            strcpy (bufferUscita,
-                    "SPEGNIMENTO IN CORSO\n");
-            send (clientSocket,
-                  bufferUscita,
-                  sizeof ("SPEGNIMENTO IN CORSO\n") - 1,
-                  0);
-
-            utilita.stampaRigaSuFile(fp,dataStamp,comando_riconosciuto);
-            utilita.stampaRigaSuFile (fp,dataStamp,bufferUscita);
-
-            //TODO: chiudi TCP e spegni:
-            chiudiVLCeRaspivid (utilita, fp, dataStamp);
-            cout << system ("shutdown +1") << endl;
-            close (clientSocket);// chiudi il socket
-            break;
-        }
-        else
-        {
-            char comando_non_riconosciuto[] = "Comando non riconosciuto\n";
-            utilita.stampaRigaSuFile(fp,dataStamp,comando_non_riconosciuto);
-            cerr << comando_non_riconosciuto;
+        while(true)
+        { //to avoid raspivid closing
+            ;
         }
 
-    }
-
-    return 0;
 }
 
 int chiudiVLCeRaspivid (Utilita utilita, FILE* fp, char dataStamp[50])
@@ -258,7 +289,6 @@ int chiudiVLCeRaspivid (Utilita utilita, FILE* fp, char dataStamp[50])
     char successo[] = "Processi vlc e raspivid chiusi senza errori\n";
     cout << successo;
     utilita.stampaRigaSuFile(fp,dataStamp,successo);
-    return 0;
 }
 
 void avviaRaspivid ()
