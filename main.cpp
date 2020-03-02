@@ -7,6 +7,7 @@
 #include <arpa/inet.h>
 #include <string>
 #include <thread>
+#include "Utilita.h"
 
 
 using namespace std;
@@ -21,10 +22,13 @@ raspivid -o - -t 0 -h 300 -w 300 | cvlc -v stream:///dev/stdin --sout '#rtp{sdp=
 
 void avviaRaspivid ();
 
-int chiudiVLCeRaspivid ();
+int chiudiVLCeRaspivid (Utilita utilita, FILE* fp, char dataStamp[50]);
 
 int main ()
 {
+    Utilita utilita; //classe di utilità
+    FILE *fp = Utilita::apriNuovoFile();
+    char dataStamp[50]; //buffer che contiene la data attuale
 
     std::thread t1 (avviaRaspivid);
 
@@ -33,7 +37,9 @@ int main ()
                                   SOCK_STREAM,
                                   IPPROTO_TCP);
     if (listeningSocket == -1) {
-        cerr << "Errore nel creare un socket";
+        char errore[] = "Errore nel creare un socket\n";
+        utilita.stampaRigaSuFile(fp,dataStamp,errore);
+        cerr << errore;
         return -1;
     }
 
@@ -51,15 +57,18 @@ int main ()
     if (bind (listeningSocket,
               (sockaddr *) &hint,
               sizeof (hint)) == -1) {
-        cerr << "Non riesco a fare un bind con l'IP e/o la porta\n";
+        char errore[] = "Non riesco a fare un bind con l'IP e/o la porta\n";
+        utilita.stampaRigaSuFile(fp,dataStamp,errore);
+        cerr << errore;
         return -2;
     }
 
     // segna il socket per farlo ascoltare
     if (listen (listeningSocket,
                 3) == -1) //3 = numero massimo di connessioni accettate
-    {
-        cerr << "Non riesco ad ascoltare";
+    {   char errore[] = "Non riesco ad ascoltare\n";
+        utilita.stampaRigaSuFile(fp,dataStamp,errore);
+        cerr << errore;
         return -3;
     }
 
@@ -72,7 +81,9 @@ int main ()
                                (sockaddr *) &clientsSocketAddress,
                                &clientsSocketAddressSize);
     if (clientSocket == -1) {
-        cerr << "C'è un problema con la connessione del client";
+        char errore[] = "C'è un problema con la connessione del client\n";
+        utilita.stampaRigaSuFile(fp,dataStamp,errore);
+        cerr << errore;
         return -4;
     }
 
@@ -142,14 +153,20 @@ int main ()
                                   4096,
                                   0);
         if (bytesReceived == -1) {
-            cerr << "c'è stato un problema di connessione... " << endl;
+            char errore[] = "C'è stato un problema di connessione... \n";
+            utilita.stampaRigaSuFile(fp,dataStamp,errore);
+            cerr << errore;
             break;
         }
 
         if (bytesReceived == 0) {
-            cout << "sembra che il client si sia disconnesso..." << endl;
+            char errore[] = "sembra che il client si sia disconnesso...\n";
+            utilita.stampaRigaSuFile(fp,dataStamp,errore);
+            cerr << errore;
             break;
         }
+
+        char comando_riconosciuto[] = "Comando riconosciuto\n";
 
         inArrivo = string (buffer,
                            0,
@@ -163,12 +180,14 @@ int main ()
 
 
         //manda un messaggio per far sapere che ha ricevuto
+        char server_riceve_msg[] ="Il server ha ricevuto un messaggio;\n";
         strcpy (bufferUscita,
-                "\nIl server ha ricevuto un messaggio;\n");
+                server_riceve_msg);
         send (clientSocket,
               bufferUscita,
-              sizeof("\nIl server ha ricevuto un messaggio;\n") - 1,
+              sizeof(server_riceve_msg) - 1,
               0);
+        utilita.stampaRigaSuFile(fp,dataStamp,server_riceve_msg);
         //////////////////////////////////////////////////////////////
 
         if (inArrivo.find (RICHIESTA_CHIUSURA_CONNESSIONE) != std::string::npos) {
@@ -181,13 +200,17 @@ int main ()
                   sizeof ("CHIUSURA IN CORSO\n") - 1,
                   0);
 
+            utilita.stampaRigaSuFile(fp,dataStamp,comando_riconosciuto);
+            utilita.stampaRigaSuFile (fp,dataStamp,bufferUscita);
+
             //TODO: chiudi TCP:
-            chiudiVLCeRaspivid ();
+            chiudiVLCeRaspivid (utilita, fp, dataStamp);
             break;
         }
+        else if (inArrivo.find (RICHIESTA_SPEGNIMENTO) != std::string::npos) {
 
-        if (inArrivo.find (RICHIESTA_SPEGNIMENTO) != std::string::npos) {
-            cout << "Trovata corrispondenza" << endl;
+
+            cout << comando_riconosciuto << endl;
 
             strcpy (bufferUscita,
                     "SPEGNIMENTO IN CORSO\n");
@@ -196,28 +219,45 @@ int main ()
                   sizeof ("SPEGNIMENTO IN CORSO\n") - 1,
                   0);
 
+            utilita.stampaRigaSuFile(fp,dataStamp,comando_riconosciuto);
+            utilita.stampaRigaSuFile (fp,dataStamp,bufferUscita);
+
             //TODO: chiudi TCP e spegni:
-            chiudiVLCeRaspivid ();
+            chiudiVLCeRaspivid (utilita, fp, dataStamp);
             cout << system ("shutdown +1") << endl;
+            close (clientSocket);// chiudi il socket
             break;
         }
-
+        else
+        {
+            char comando_non_riconosciuto[] = "Comando non riconosciuto\n";
+            utilita.stampaRigaSuFile(fp,dataStamp,comando_non_riconosciuto);
+            cerr << comando_non_riconosciuto;
+        }
 
     }
-
-    // chiudi il socket
-    close (clientSocket);
 
     return 0;
 }
 
-int chiudiVLCeRaspivid ()
+int chiudiVLCeRaspivid (Utilita utilita, FILE* fp, char dataStamp[50])
 {
+    if(fclose(fp) != 0)
+    {
+        char errore[] = "Errore nel chiudere il file di log.\n";
+        utilita.stampaRigaSuFile(fp,dataStamp,errore);
+        cerr << errore;
+    }
+
     if (system ("pkill vlc") > 0 || system ("pkill raspivid") > 0) {
-        cerr << "Errore nel chiudere vlc e/o raspivid" << endl;
+        char errore[] = "Errore nel chiudere vlc e/o raspivid\n";
+        utilita.stampaRigaSuFile(fp,dataStamp,errore);
+        cerr << errore;
         return -7;
     }
-    cout << "Processi vlc e raspivid chiusi senza errori" << endl;
+    char successo[] = "Processi vlc e raspivid chiusi senza errori\n";
+    cout << successo;
+    utilita.stampaRigaSuFile(fp,dataStamp,successo);
     return 0;
 }
 

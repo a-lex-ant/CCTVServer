@@ -4,4 +4,4 @@ project(serverProvaTCP)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_FLAGS -pthread)
 
-add_executable(serverProvaTCP main.cpp)
+add_executable(serverProvaTCP main.cpp Utilita.cpp Utilita.h)
